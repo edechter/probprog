@@ -1,6 +1,13 @@
 (declare (usual-integrations +))
 (load "randutil")
 
+;; setting up generic extension for +
+
+(define default+ +)
+(define + (make-generic-procedure (make-procedure-arity 1 #f) 'generic+))
+(set-generic-procedure-default-generator!
+  + (lambda (proc tags) (force-sample-and-apply default+)))
+
 ;; sample generic datatype
 
 (define the-unsampled-value 'the-unsampled-value)
@@ -12,7 +19,7 @@
 (define sample? (make-generic-procedure (make-procedure-arity 1) 'sample?))
 
 (set-generic-procedure-default-generator!
-  sample? (lambda (proc tags) #f))
+  sample? (lambda (proc tags) (lambda args #f)))
 
 (define (sample:unsampled? s)
   (and (sample? s)
@@ -86,17 +93,6 @@
                 (eq? tag (record-type-dispatch-tag ,record-name)))
            )))))
 
-;; setting up generic extension for +
-
-(define default+ +)
-(define + (make-generic-procedure (make-procedure-arity 1 #f) 'generic+))
-(set-generic-procedure-default-generator!
-  + (lambda (proc tags) (force-sample-and-apply default+)))
-
-
-
-
-
 ;; gaussian
 
 (make-sample-datatype gaussian gaussian:make-params gaussian:rvs)
@@ -104,7 +100,16 @@
 ;; TODO needs to handle samples (collapsed and uncollapsed, gaussian and
 ;; others), numbers, others are error
 (define (gaussian:+ . args)
-  5)
+  (define (sum-means gaussians)
+    (apply default+ (map gaussian:mean (map gaussian-sample:params gaussians))))
+  (define (sum-vars gaussians)
+    (apply default+ (map gaussian:var (map gaussian-sample:params gaussians))))
+  ((partition (lambda (s) (and (gaussian-sample? s) (sample:unsampled? s))) args)
+   (lambda (gaussians nongaussians)
+     (let ((newmean (default+ (sum-means gaussians) (apply default+ (map force-sample nongaussians))))
+           (newvar (sum-vars gaussians)))
+     (gaussian-sample:new newmean newvar)))))
+
 
 (add-generic-procedure-generator
   + (lambda (proc tags)
