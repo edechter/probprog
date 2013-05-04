@@ -1,7 +1,6 @@
 (declare (usual-integrations))
 
-;; NOTE: functions in this file use flo-typed math so they are a pain to call
-;; directly
+;; NOTE: functions in this file use flo-typed math!
 
 (load "constants")
 (load "util")
