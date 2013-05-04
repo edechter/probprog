@@ -26,8 +26,6 @@
       (gaussian-builder:new-independent mean var))))
 
 
-
-
 ;; Gaussian Builder ;;
 
 (define *cov-factor* (make-vector 16))
@@ -55,15 +53,15 @@
   (define (sum-squares sparse-row-vec)
     (apply default:+ (map square (vector->list (vector-map cdr sparse-row-vec)))))
   (define (sum-of-means gaussian-objects)
-    (apply default+ (map gaussian:mean (map gaussian:params gaussian-objects))))
+    (apply default+ (map gaussian:mean (map gaussian-sample:params gaussian-objects))))
 
-  (let ((newrow (cov-builder:row-dot gaussians)))
+  (let ((newrow (gaussian-builder:row-dot list-of-gaussians)))
     (let ((newvar (sum-squares newrow))
           (newmean (sum-of-means list-of-gaussians)))
-      (let* ((sample-obj (%gaussian:new (gaussian:make-params newmean newvar) 'the-unsampled-value))
-             (index (cov-builder:get-index! sample-obj)))
-        (vector-set! newrow (- (vector-length newrow) 1) (cons index newvar))
-        (cov-builder:add-row! newrow)
+      (let* ((sample-obj (%gaussian-sample:new (gaussian:make-params newmean newvar) 'the-unsampled-value))
+             (index (gaussian-builder:get-index sample-obj)))
+        (vector-set! newrow 0 (cons index newvar))
+        (gaussian-builder:add-row! newrow)
         sample-obj))))
 
 ;; (gaussian-builder:new-scaling existing-gaussian-obj number)
@@ -79,6 +77,8 @@
 ;; (define (gaussian-builder:sample!)
 ;;   )
 
+;; instead of all this i could just do dense matrix ops to begin with
+
 (define (gaussian-builder:add-row! row)
   (let ((len (vector-length *cov-factor*)))
     (if (= *cov-factor-size* len)
@@ -93,6 +93,27 @@
                        (let ((new-index (hash-table/count *indices*)))
                          (hash-table/put! *indices* obj new-index)
                          new-index))))
+
+(define (gaussian-builder:row-dot list-of-gaussians)
+  (let ((result-hash (make-eq-hash-table)))
+    (let lp1 ((lst list-of-gaussians))
+      (if (not (null? lst))
+        (let* ((row (vector-ref *cov-factor* (gaussian-builder:get-index (car lst))))
+               (len (vector-length row)))
+          (let lp2 ((idx 0))
+            (if (< idx len)
+              (let* ((pair (vector-ref row idx))
+                     (col (car pair))
+                     (val (cdr pair)))
+                (hash-table/lookup result-hash
+                                   col
+                                   (lambda (oldval)
+                                     (hash-table/put! result-hash col (default:+ val oldval)))
+                                   (lambda ()
+                                     (hash-table/put! result-hash col val)))
+                (lp2 (default:+ idx 1)))))
+          (lp1 (cdr lst)))))
+    (list->vector (cons (cons #f 0) (hash-table->alist result-hash)))))
 
 
 ;; NOTE: choice vals could be samples, in which case set prior score will fail.

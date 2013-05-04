@@ -129,11 +129,11 @@
 ;; NOTE: this doesn't work the way it should because the generic dispatch
 ;; mechanism only hands one tag at a time or something. gaussians must come
 ;; first in the argument list to +!
-(add-generic-procedure-generator
-  + (lambda (proc tags)
-      (pp tags)
-      (and (any gaussian-sample-dispatch-tag? tags)
-           gaussian:+)))
+;; (add-generic-procedure-generator
+;;   + (lambda (proc tags)
+;;       (pp tags)
+;;       (and (any gaussian-sample-dispatch-tag? tags)
+;;            gaussian:+)))
 
 ;; TODO i want to register things too. add to a joint gaussian model.
 ;; build up a sparse representation like (i j val) for the chol factor
