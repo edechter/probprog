@@ -12,7 +12,7 @@
 ;; parameters
 
 (define (gaussian:make-params mean var)
-  (make-flo-vector (cons mean var)))
+  (pair->flo-vector (cons mean var)))
 (define (gaussian:mean params)
   (flo:vector-ref params 0))
 (define (gaussian:var params)

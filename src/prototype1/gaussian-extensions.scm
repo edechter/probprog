@@ -16,9 +16,7 @@
        (error "BRO"))
      (gaussian-builder:new-scaling (car gaussians) (apply default:* (map force-sample nongaussians))))))
 
-
-
-;; new gaussian object, not a generic, hooks into the joint
+;; create a new gaussian "source"
 (define (gaussian:new mean var)
   (let ((var (force-sample var)))
     (if (gaussian-sample? mean)
@@ -67,6 +65,7 @@
 ;; (gaussian-builder:new-scaling existing-gaussian-obj number)
 ;;   makes and returns a new gaussian sample object corresponding within the
 ;;   joint gaussian to a scaling of the given gaussian by the numerical constant
+;; TODO
 ;; (define (gaussian-builder:new-scaling gaussian const)
 ;;   )
 
@@ -77,7 +76,7 @@
 ;; (define (gaussian-builder:sample!)
 ;;   )
 
-;; instead of all this i could just do dense matrix ops to begin with
+;; internals called by other gaussian-builder functions
 
 (define (gaussian-builder:add-row! row)
   (let ((len (vector-length *cov-factor*)))
@@ -114,6 +113,53 @@
                 (lp2 (default:+ idx 1)))))
           (lp1 (cdr lst)))))
     (list->vector (cons (cons #f 0) (hash-table->alist result-hash)))))
+
+;; TODO
+;; (define (gaussian-builder:get-dense-blocks func)
+;;   ;; looks at all gaussians stored in our *indices* index and partitions them
+;;   ;; into three groups:
+;;   ;;   * unforced sources
+;;   ;;   * forced (sources and non-sources)
+;;   ;;   * unforced non-sources
+;;   ;; assigns new indices (and sets *posterior-indices*) following that
+;;   ;; grouping and freezes out three dense matrices for those corresponding
+;;   ;; block rows of the cov-factor
+;;   )
+
+;; TODO
+(define (gaussian-builder:set-posterior-parameters)
+  ((gaussian-builder:get-dense-blocks
+     (lambda (sources-factor sources-mean cond-factor cond-mean cond-obs derived-factor derived-mean)
+       (let* ((ST (m:transpose cond-factor))
+              (DST (matrix*matrix sources-factor ST))
+              (SST (matrix*matrix cond-factor ST))
+              (post-sources-mean (matrix+matrix sources-mean
+                                                (matrix*matrix
+                                                  DST
+                                                  (psd-solve SST
+                                                             (matrix-matrix cond-obs cond-mean)))))
+              ;; TODO cov
+              )
+         post-sources-mean)))))
+
+;; TODO
+;; (define (gaussian-builder:sample-unforced)
+;;   ;; assumes posterior parameters are set (?) and sets all unforced things to a
+;;   ;; joint sample from their posterior using a cholesky factorization
+;;   ;; best case!
+;;   )
+
+;; TODO
+;; (define (gaussian-builder:score-likelihood gaussian-objs observed-vals)
+;;   ;; assumes the posteiror parameters are set and scores the likelihood of the
+;;   ;; given gaussian-objs taking on the observed-vals
+;;   )
+
+
+
+
+
+
 
 
 ;; NOTE: choice vals could be samples, in which case set prior score will fail.
