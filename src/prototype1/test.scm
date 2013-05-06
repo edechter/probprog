@@ -14,7 +14,7 @@
       (emit (or (= sum 0)
                 (= sum 2))
             #t)
-      (list x y z))))
+      (= sum 0))))
 
 (define (dumb)
   (let ((x (gaussian 0 4)))

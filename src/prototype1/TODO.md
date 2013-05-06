@@ -17,7 +17,5 @@
 * everything should be uncollapsed by default and not add to choice chain
 
 # notes #
-* compiling with clang seemed to yield wrong answers for discrete tests, wtf!
-  binary search on partial compiles, should be impossible
 * generic dispatch doesn't work like it says it does, so uncollapsed gaussian
   samples need to come first in the argument list to +

@@ -4,19 +4,19 @@
 
 ;; apply this method if there are unforced gaussians in args
 (define (gaussian:+ . args)
-  ((partition gaussian-sample? args)
+  ((partition! gaussian-sample? args)
    (lambda (gaussians nongaussians)
      (gaussian-builder:new-sum gaussians (apply default:+ (map force-sample nongaussians))))))
 
 ;; apply this method if there's one unforced sample and it's a gaussian
 (define (gaussian:* . args)
-  ((partition gaussian-sample? args)
+  ((partition! gaussian-sample? args)
    (lambda (gaussians nongaussians)
      (if (not (= (length gaussians) 1))
        (error "BRO"))
      (gaussian-builder:new-scaling (car gaussians) (apply default:* (map force-sample nongaussians))))))
 
-;; create a new gaussian "source"
+;; create a new gaussian source hooked into the joint gaussian framework
 (define (gaussian:new mean var)
   (let ((var (force-sample var)))
     (if (gaussian-sample? mean)
@@ -58,7 +58,6 @@
           (newmean (sum-of-means list-of-gaussians)))
       (let* ((sample-obj (%gaussian-sample:new (gaussian:make-params newmean newvar) 'the-unsampled-value))
              (index (gaussian-builder:get-index sample-obj)))
-        (vector-set! newrow 0 (cons index newvar))
         (gaussian-builder:add-row! newrow)
         sample-obj))))
 
@@ -112,38 +111,97 @@
                                      (hash-table/put! result-hash col val)))
                 (lp2 (default:+ idx 1)))))
           (lp1 (cdr lst)))))
-    (list->vector (cons (cons #f 0) (hash-table->alist result-hash)))))
+    (list->vector (hash-table->alist result-hash))))
+
+(load "exact-matrices")
+
+;; oh jesus it's big
+;; also sets post indices?
+(define *post-indices* (make-eq-hash-table))
+(define (gaussian-builder:get-conditioning-blocks func)
+  ((partition! (lambda (pair) (sample:sampled? (car pair)))
+               (hash-table->alist *indices*))
+   (lambda (sampled unsampled)
+     ((partition! (lambda (pair) (memq (car pair) *sources-list*))
+                  unsampled)
+      (lambda (unsampled-sources unsampled-derived)
+
+        (define (get-dense-block indices)
+          (let ((result (m:zeros (length indices) (length *sources-list*))))
+            (let ((rows (map (lambda (i) (vector-ref *cov-factor* i))
+                             indices))
+                  (i 0))
+              (for-each (lambda (row)
+                          (vector-map (lambda (colval)
+                                        (matrix-set! result i (car colval) (cdr colval)))
+                                      row)
+                          (set! i (fix:+ i 1)))
+                        rows))
+            result))
+
+        (define (get-dense-col func sample-objs)
+          (apply col-matrix (map func sample-objs)))
+
+        (define (get-mean sample-obj)
+          (gaussian:mean (gaussian-sample:params sample-obj)))
+
+        (define (get-val sample-obj)
+          (gausisan-sample:val sample-obj))
+
+        (let ((sources-factor (get-dense-block (map cdr unsampled-sources)))
+              (cond-factor (get-dense-block (map cdr sampled)))
+              (derived-factor (get-dense-block (map cdr unsampled-derived)))
+
+              (sources-mean (get-dense-col get-mean (map car unsampled-sources)))
+              (cond-mean (get-dense-col get-mean (map car sampled)))
+              (derived-mean (get-dense-col get-mean (map car unsampled-derived)))
+
+              (cond-obs (get-dense-col get-val (map car sampled))))
+          (func sources-factor sources-mean cond-factor cond-mean cond-obs derived-factor derived-mean)))))))
+
+(define x (gaussian:new 0 1))
+(define y (gaussian:new 0 4))
+(define z (gaussian:+ x y))
+
+
+;;         (let ((counter 0))
+;;             (for-each (lambda (pair)
+;;                         (hash-table/put! *post-indices* (car pair) counter)
+;;                         (set! counter (fix:+ counter 1)))
+;;                       (append unsampled-sources sampled unsampled-derived)))
+
+;;         (let 
+;;         )))))
+
+  ;; looks at all gaussians stored in our *indices* index and partitions them
+  ;; into three groups:
+  ;;   * unforced sources
+  ;;   * forced (sources and non-sources)
+  ;;   * unforced non-sources
+  ;; assigns new indices (and sets *posterior-indices*) following that
+  ;; grouping and freezes out three dense matrices for those corresponding
+  ;; block rows of the cov-factor
+  ;; )
 
 ;; TODO
-;; (define (gaussian-builder:get-dense-blocks func)
-;;   ;; looks at all gaussians stored in our *indices* index and partitions them
-;;   ;; into three groups:
-;;   ;;   * unforced sources
-;;   ;;   * forced (sources and non-sources)
-;;   ;;   * unforced non-sources
-;;   ;; assigns new indices (and sets *posterior-indices*) following that
-;;   ;; grouping and freezes out three dense matrices for those corresponding
-;;   ;; block rows of the cov-factor
-;;   )
+;; (define (gaussian-builder:set-posterior-parameters)
+;;   ((gaussian-builder:get-dense-conditioning-blocks
+;;      (lambda (sources-factor sources-mean cond-factor cond-mean cond-obs derived-factor derived-mean)
+;;        (let* ((ST (m:transpose cond-factor))
+;;               (DST (matrix*matrix sources-factor ST))
+;;               (SST (matrix*matrix cond-factor ST))
+;;               (post-sources-mean (matrix+matrix sources-mean
+;;                                                 (matrix*matrix
+;;                                                   DST
+;;                                                   (psd-solve SST
+;;                                                              (matrix-matrix cond-obs cond-mean)))))
+;;               ;; TODO cov
+;;               )
+;;          ;; TODO save things
+;;          post-sources-mean)))))
 
 ;; TODO
-(define (gaussian-builder:set-posterior-parameters)
-  ((gaussian-builder:get-dense-blocks
-     (lambda (sources-factor sources-mean cond-factor cond-mean cond-obs derived-factor derived-mean)
-       (let* ((ST (m:transpose cond-factor))
-              (DST (matrix*matrix sources-factor ST))
-              (SST (matrix*matrix cond-factor ST))
-              (post-sources-mean (matrix+matrix sources-mean
-                                                (matrix*matrix
-                                                  DST
-                                                  (psd-solve SST
-                                                             (matrix-matrix cond-obs cond-mean)))))
-              ;; TODO cov
-              )
-         post-sources-mean)))))
-
-;; TODO
-;; (define (gaussian-builder:sample-unforced)
+;; (define (gaussian-builder:joint-sample-unforced)
 ;;   ;; assumes posterior parameters are set (?) and sets all unforced things to a
 ;;   ;; joint sample from their posterior using a cholesky factorization
 ;;   ;; best case!

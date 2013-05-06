@@ -21,11 +21,11 @@
 ;; sampling
 
 (define (gaussian:rvs params)
-  (let ((mean (gaussian:mean params))
-        (var (gaussian:var params)))
+  (let ((mean (exact->inexact (gaussian:mean params)))
+        (var (exact->inexact (gaussian:var params))))
     (let ((u (random 1.0))
           (v (random 1.0))
-          (std (exact->inexact (sqrt var))))
+          (std (sqrt var)))
       (flo:+ mean
              (flo:* std
                     (flo:*
@@ -35,8 +35,8 @@
 ;; log-likelihood
 
 (define (gaussian:log-likelihood val params)
-  (let* ((mean (vector-ref params 0))
-         (var (vector-ref params 1))
+  (let* ((mean (exact->inexact (gaussian:mean params)))
+         (var (exact->inexact (gaussian:var params)))
          (centered (exact->inexact (- val mean))))
     (flo:- (flo:/ (flo:* centered centered) (flo:* -2. var))
            (flo:/ (flo:log (flo:* (flo:* 2. pi) var)) 2.))))
@@ -69,10 +69,10 @@
 (define (discrete:rvs params)
   (let ((items (discrete:items params))
         (weights (discrete:weights params))
-        (tot (exact->inexact (discrete:tot params))))
+        (tot (discrete:tot params)))
     (if (default-object? weights)
       (vector-ref items (random (vector-length items)))
-      (let lp ((val (flo:* tot (random 1.0)))
+      (let lp ((val (* tot (random 1.0)))
                (idx 0))
         (let ((val (- val (vector-ref weights idx))))
           (if (not (flo:> val 0.))

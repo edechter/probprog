@@ -105,7 +105,7 @@
                     (sigma
                       (lambda (k)
                         (* (matrix-ref matrix1 i k)
-                               (matrix-ref matrix2 k j)))
+                           (matrix-ref matrix2 k j)))
                       0
                       m1cm1))))))
 
@@ -125,9 +125,29 @@
 
 
 (define (solve-psd m b)
-  (let ((chol (cholesky m)))
-    (solve-upper-trinagular (m:transpose chol)
-                            (solve-lower-triangular chol b))))
+  (let ((pair (LDLT m)))
+    (let ((L (car pair))
+          (d (cdr pair)))
+      (solve-upper-triangular
+        (m:transpose L)
+        (solve-diagonal
+          d
+          (solve-lower-triangular L b))))))
+
+(define (solve-diagonal d b)
+  (let ((nrows (m:num-rows b))
+        (ncols (m:num-cols b)))
+    (let ((result (m:empty nrows ncols)))
+      (let outerloop ((k 0))
+        (if (fix:< k ncols)
+          (let lp1 ((i 0))
+            (if (fix:< i nrows)
+              (let ((di (matrix-ref d i 0))
+                    (bik (matrix-ref b i k)))
+                (matrix-set! result i k (/ bik di))
+                (lp1 (fix:+ i 1))))
+            (outerloop (fix:+ k 1)))))
+      result)))
 
 (define (solve-lower-triangular L b)
   (let ((nrows (m:num-rows b))
@@ -136,18 +156,10 @@
       (let outerloop ((k 0)) ;; across columns of b
         (if (fix:< k ncols)
           (let lp1 ((i 0))
-            (define (get-sum)
-              (let lp2 ((j 0)
-                        (sum 0))
-                (if (fix:< j i)
-                  (lp2 (fix:+ j 1) (+ sum
-                                          (*
-                                            (matrix-ref L i j)
-                                            (matrix-ref result j k))))
-                  sum)))
-
             (if (fix:< i nrows)
-              (let ((thesum (get-sum))
+              (let ((thesum (sigma (lambda (j) (* (matrix-ref L i j)
+                                                  (matrix-ref result j k)))
+                                   0 (fix:- i 1)))
                     (bi (matrix-ref b i k))
                     (lii (matrix-ref L i i)))
                 (matrix-set! result i k (/ (- bi thesum) lii))
@@ -160,26 +172,16 @@
         (ncols (m:num-cols b)))
     (let ((result (m:empty nrows ncols)))
       (let outerloop ((k 0)) ;; across columns of b
-
         (if (fix:< k ncols)
           (let lp1 ((i (fix:- nrows 1)))
-            (define (get-sum)
-              (let lp2 ((j (fix:+ i 1))
-                        (sum 0))
-                (if (fix:< j nrows)
-                  (lp2 (fix:+ j 1) (+ sum
-                                          (*
-                                            (matrix-ref LT i j)
-                                            (matrix-ref result j k))))
-                  sum)))
-
-            (let ((thesum (get-sum))
+            (let ((thesum (sigma (lambda (j) (* (matrix-ref LT i j)
+                                                (matrix-ref result j k)))
+                                 (fix:+ i 1) (fix:- nrows 1)))
                   (bi (matrix-ref b i k))
                   (lii (matrix-ref LT i i)))
               (matrix-set! result i k (/ (- bi thesum) lii))
               (if (fix:> i 0) (lp1 (fix:- i 1)))))
-
-            (outerloop (fix:+ k 1))))
+          (outerloop (fix:+ k 1))))
       result)))
 
 (define (cholesky A)
