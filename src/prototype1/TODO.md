@@ -1,6 +1,6 @@
 # definitely #
 * undoable effects
-* save the number of accepts and rejects
+* save the number of accepts and rejects, maybe auto-tune
 
 # maybe #
 * make pramb a macro like amb so it doesn't evaluate its arguments?
@@ -14,7 +14,7 @@
   implementation. generics!
 * stream of samples (in terms of resume, should be easy, then function to
   estimate means and stuff should be cleaner)
-* everything should be uncollapsed by default and not add to choice chain
+* everything should be uncollapsed by default
 
 # notes #
 * generic dispatch doesn't work like it says it does, so uncollapsed gaussian
