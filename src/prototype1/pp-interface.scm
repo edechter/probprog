@@ -54,7 +54,7 @@
 
 (define ((proposals:additive-gaussian mean var) choice)
   (let* ((params (gaussian:make-params mean var))
-         (old-val (choice:val choice))
+         (old-val (exact->inexact (choice:val choice)))
          (nudge (gaussian:rvs params))
          (new-val (flo:+ old-val nudge))
          (proposal-score (gaussian:log-likelihood nudge params)))
