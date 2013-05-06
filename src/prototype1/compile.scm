@@ -6,3 +6,5 @@
 (cf "pp")
 (cf "pp-interface")
 (cf "test")
+(cf "gamma")
+(cf "geometric")
