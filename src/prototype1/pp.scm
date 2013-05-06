@@ -72,8 +72,8 @@
 (define (MH-sample-ptrace)
   (if (not *alternative-ptrace*)
     (begin (set! *alternative-ptrace* (ptrace:new '())) *current-ptrace*)
-    (let ((forward-choice-prob (flo:negate (flo:log (exact->inexact (ptrace:length *alternative-ptrace*)))))
-          (backward-choice-prob (flo:negate (flo:log (exact->inexact (ptrace:length *current-ptrace*)))))
+    (let ((forward-choice-prob (- (log (ptrace:length *alternative-ptrace*))))
+          (backward-choice-prob (- (log (ptrace:length *current-ptrace*))))
           (current-prior (prior-score *current-ptrace*))
           (alternative-prior (prior-score *alternative-ptrace*))
           (current-likelihood (ptrace:likelihood-score *current-ptrace*))
@@ -83,7 +83,7 @@
             (else (let ((accept-current-probability
                           (flo:sum (flo:- current-prior alternative-prior)
                                    (flo:- current-likelihood alternative-likelihood)
-                                   (flo:- backward-choice-prob forward-choice-prob)
+                                   (exact->inexact (- backward-choice-prob forward-choice-prob))
                                    (flo:- *backward-score* *forward-score*))))
                     (if (flo:< (flo:log (random 1.0)) accept-current-probability)
                       *current-ptrace*
