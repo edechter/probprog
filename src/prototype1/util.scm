@@ -1,12 +1,15 @@
 (declare (usual-integrations))
 
-(define (flo:sigma f low high)
+(define ((g:sigma op id) f low high)
   (if (fix:> low high)
-    0.
+    id
     (let lp ((i (fix:+ low 1)) (sum (f low)))
       (if (fix:> i high)
         sum
-        (lp (fix:+ i 1) (flo:+ sum (f i)))))))
+        (lp (fix:+ i 1) (op sum (f i)))))))
+
+(define flo:sigma (g:sigma flo:+ 0.))
+(define sigma (g:sigma + 0))
 
 (define (flo:make-initialized-vector n proc)
   (let ((result (flo:vector-cons n)))
@@ -16,6 +19,21 @@
           (flo:vector-set! result i (proc i))
           (lp (fix:+ i 1)))
         result))))
+
+(define (flo:vector-sum v)
+  (let ((len (flo:vector-length v)))
+    (let lp ((idx 0)
+             (tot 0.))
+      (if (< idx len)
+        (lp (+ idx 1) (flo:+ tot (flo:vector-ref v idx)))
+        tot))))
+
+(define (flo:sum . args)
+  (let lp ((tot 0.)
+           (lst args))
+    (if (null? lst)
+      tot
+      (lp (flo:+ tot (car lst)) (cdr lst)))))
 
 (define (list->flo-vector lst)
   (let* ((len (length lst))
@@ -43,19 +61,4 @@
     (flo:vector-set! v 0 (exact->inexact (car pair)))
     (flo:vector-set! v 1 (exact->inexact (cdr pair)))
     v))
-
-(define (flo:vector-sum v)
-  (let ((len (flo:vector-length v)))
-    (let lp ((idx 0)
-             (tot 0.))
-      (if (< idx len)
-        (lp (+ idx 1) (flo:+ tot (flo:vector-ref v idx)))
-        tot))))
-
-(define (flo:sum . args)
-  (let lp ((tot 0.)
-           (lst args))
-    (if (null? lst)
-      tot
-      (lp (flo:+ tot (car lst)) (cdr lst)))))
 
