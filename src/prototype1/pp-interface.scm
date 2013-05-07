@@ -62,3 +62,14 @@
     (set! *backward-score* proposal-score)
     new-val))
 
+(define ((proposals:flip p) choice)
+  (if (< (random 1.0) p)
+      (begin
+        (set! *forward-score (flo:log p))
+        (set! *backward-score (flo:log (- 1 p)))
+        (not (choice:val choice)))
+      (begin
+        (set! *forward-score (flo:log (- 1 p)))
+        (set! *backward-score (flo:log (p)))
+        ((choice:val choice)))))
+
