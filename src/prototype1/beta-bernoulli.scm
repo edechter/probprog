@@ -36,11 +36,11 @@
   (hash-table/remove! *betas* beta-rv))
 
 (define (*betas*:get-beta beta-rv)
-  (hash-table/get *betas* beta-rv))
+  (hash-table/get *betas* beta-rv 'no-value))
 
 (define (*betas*:add-bern! beta-rv bern-rv val)
   (let* ((berns (beta-bern-ds:berns (*betas*:get-beta beta-rv))))
-         (hash-table/put! berns bern val)))
+         (hash-table/put! berns bern-rv val)))
 
 (define (beta-bern-ds:show ds)
   (display "a: ") (display (beta-bern-ds:a ds)) (newline)
@@ -51,15 +51,17 @@
   (for-each beta-bern-ds:show
             (hash-table/datum-list *betas*)))
 
-(define (beta-bern-ds:update-counts! ds)
+(define (beta-bern-ds:counts ds)
   (let* ( (counts (hash-table/datum-list (beta-bern-ds:berns ds)))
           (heads (filter (lambda (x) (eq? 1 x)) counts))
-          (tails (filter (lambda (x) (eq? 0 x)) counts)))
-    (beta-bern-ds:set-a! ds (+ (length heads) (beta-bern-ds:a ds)))
-    (beta-bern-ds:set-b! ds (+ (length tails) (beta-bern-ds:b ds)))))
+          (tails (filter (lambda (x) (eq? 0 x)) counts))
+          (new-a (+ (length heads) (beta-bern-ds:a ds)))
+          (new-b (+ (length heads) (beta-bern-ds:b ds))))
+    (cons a b)))
 
-(define (*betas*:update-counts! beta-rv)
-  (beta-bern-ds:update-counts! (*beta*:get-beta beta-rv)))          
+
+(define (*betas*:counts beta-rv)
+  (beta-bern-ds:counts (*betas*:get-beta beta-rv)))          
 
 (define (beta a b #!optional proposer)
   (if (default-object? proposer)
@@ -69,7 +71,7 @@
   (let ( (rv (rv:new 'beta
                      the-unsampled-value
                      (pair->flo-vector (cons a b))
-                     beta:rvs-global
+                     beta:rvs
                      beta:log-likelihood
                      beta:force-hook
                      beta:force-set-hook
@@ -77,10 +79,9 @@
     (*betas*:init-new! rv a b)
     rv))
 
-(define (beta:rvs-global params)
-  (let ((a (beta-bern-ds:a *beta-bern-ds*))
-        (b (beta-bern-ds:b *beta-bern-ds*)))
-    (beta:rvs (pair->flo-vector (cons a b)))))
+(define ((beta:rvs-global beta-rv) params)
+  (let ((a&b (*betas*:counts beta-rv)))
+    (beta-rvs (pair->flo-vector a&b))))
 
 (define (beta:force-hook rv)
   'unspecific)
@@ -89,10 +90,8 @@
   'unspecific)
 
 (define (bern p #!optional proposer)
-
   (if (default-object? proposer)
       (set! proposer (proposals:flip 0.5)))
-  
   (cond ( (number? p)
           (let ((rv (rv:new 'bern
                             the-unsampled-value
@@ -122,8 +121,8 @@
                                                              (beta-bern-ds:b ds))))
 
                            ;; force-hook
-                           bern:force-hook
-                           bern:force-set-hook
+                           (bern:force-hook p)
+                           (bern:force-set-hook p)
                            proposer)))
              rv))
           ((and (rv:type? p 'beta) (rv:sampled? p))
@@ -138,21 +137,20 @@
                            (lambda (x beta-rv)
                              (bern:rvs x (rv:val beta-rv)))
                            ;; force-hook
-                           bern:force-hook
+                           (bern:force-hook p)
                            ;; force-set-hook
-                           bern:force-set-hook
+                           (bern:force-set-hook p)
                            proposer)))
              rv))
           ( (error "BERN: don't know what to do with this type of parameter." p))))
 
-(define (bern:force-hook beta-rv bern-rv)
-  (*betas*:modify-bern! beta-rv bern-rv (rv:val bern-rv))
-  (*betas*:update-counts!) beta-rv)
+(define ((bern:force-hook beta-rv) bern-rv)
+  (*betas*:modify-bern! beta-rv bern-rv (rv:val bern-rv)))
   
-(define (bern:force-set-hook bern )
-  (display "Bern force set hook!")
-  (*beta-bern-ds*:insert-bern! bern (rv:val bern))
-  (*beta-bern-ds*:update-counts!))
+  
+(define ((bern:force-set-hook beta-rv) bern-rv )
+  (display "Adding bernoulli to beta!") (newline)
+  (*betas*:add-bern! beta-rv bern-rv (rv:val bern-rv)))
 
 (define (emit-bern bern val)
   (force-set! bern val))
