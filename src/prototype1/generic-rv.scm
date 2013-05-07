@@ -57,6 +57,3 @@
 (set-generic-procedure-default-generator!
  generic:emit (lambda (proc tags) emit))
 
-;; (add-generic-procedure-generator
-;;  generic:emit (lambda (proc tags)
-                

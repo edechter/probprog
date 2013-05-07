@@ -51,10 +51,10 @@
 
 (define emit 
   (make-generic-procedure (make-procedure-arity 2 3)
-                          'emit)
+                          'emit))
 
 ;; by default, we emit with the mh:emit which backtracks randomly to a
-;; ptrace continuation and samples over traces. 
+;; ptrace continuation
 (set-generic-procedure-default-generator!
  emit (lambda (proc tags) mh:emit))
         

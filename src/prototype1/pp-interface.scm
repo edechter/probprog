@@ -70,3 +70,14 @@
       (set! *forward-score* forward-score)   ;; forward means alternative -> current
       (set! *backward-score* backward-score) ;; backward means current -> alternative
       new-val)))
+
+(define ((proposals:flip p) choice)
+  (if (< (random 1.0) p)
+      (begin
+        (set! *forward-score (flo:log p))
+        (set! *backward-score (flo:log (- 1 p)))
+        (not (choice:val choice)))
+      (begin
+        (set! *forward-score (flo:log (- 1 p)))
+        (set! *backward-score (flo:log (p)))
+        ((choice:val choice)))))

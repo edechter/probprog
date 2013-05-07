@@ -10,8 +10,16 @@
 (load "beta")
 (load "bern")
 
-;; a global beta-bernoulli data structure that keeps track of all
-;; bernoullis conjugate to the beta
+;; a global beta-bernoulli data structure that keeps track of
+;; bernoullis and betas
+;; KEYS: beta random variables
+;; VALUES: objects of record type beta-bern-ds
+
+(define *betas*)
+(define (*betas*:init!)
+  (set! *betas* (make-eq-hash-table)))
+(*betas*:init!)
+  
 (define-record-type <beta-bern-ds>
   (beta-bern-ds:new a b berns)
   beta-bern-ds?
@@ -19,41 +27,45 @@
   (b beta-bern-ds:b beta-bern-ds:set-b!)
   (berns beta-bern-ds:berns beta-bern-ds:set-berns!))
 
-(define (beta-bern-ds:init)
-  (beta-bern-ds:new 'no-a 'no-b (make-eq-hash-table)))
+(define (*betas*:init-new! beta-rv a b)
+  (let ((ds (beta-bern-ds:new a b (make-eq-hash-table))))
+    (hash-table/put! *betas* beta-rv ds)
+    ds))
 
-(define (beta-bern-ds:insert-bern berns bern val)
-  (hash-table/put! berns bern val))
+(define (*betas*:remove-beta! beta-rv)
+  (hash-table/remove! *betas* beta-rv))
 
-(define *beta-bern-ds* (beta-bern-ds:init))
+(define (*betas*:get-beta beta-rv)
+  (hash-table/get *betas* beta-rv))
 
-(define (*beta-bern-ds*:show)
-  (display "a: ") (display (beta-bern-ds:a *beta-bern-ds*)) (newline)
-  (display "b: ") (display (beta-bern-ds:b *beta-bern-ds*)) (newline)
-  (display "berns: ") (display (hash-table->alist (beta-bern-ds:berns *beta-bern-ds*))) (newline))
-  
+(define (*betas*:add-bern! beta-rv bern-rv val)
+  (let* ((berns (beta-bern-ds:berns (*betas*:get-beta beta-rv))))
+         (hash-table/put! berns bern val)))
 
-(define (*beta-bern-ds*:insert-bern! bern val)
-  (beta-bern-ds:insert-bern (beta-bern-ds:berns *beta-bern-ds*)
-                            bern 
-                            val))
+(define (beta-bern-ds:show ds)
+  (display "a: ") (display (beta-bern-ds:a ds)) (newline)
+  (display "b: ") (display (beta-bern-ds:b ds)) (newline)
+  (display "berns: ") (display (hash-table->alist (beta-bern-ds:berns ds))) (newline))
 
-(define (*beta-bern-ds*:update-counts!)
-  (let* ( (counts (hash-table/datum-list (beta-bern-ds:berns *beta-bern-ds*)))
+(define (*betas*:show)
+  (for-each beta-bern-ds:show
+            (hash-table/datum-list *betas*)))
+
+(define (beta-bern-ds:update-counts! ds)
+  (let* ( (counts (hash-table/datum-list (beta-bern-ds:berns ds)))
           (heads (filter (lambda (x) (eq? 1 x)) counts))
           (tails (filter (lambda (x) (eq? 0 x)) counts)))
-    (beta-bern-ds:set-a! *beta-bern-ds* (+ (length heads) (beta-bern-ds:a *beta-bern-ds*)))
-    (beta-bern-ds:set-b! *beta-bern-ds* (+ (length tails) (beta-bern-ds:b *beta-bern-ds*)))))
-          
+    (beta-bern-ds:set-a! ds (+ (length heads) (beta-bern-ds:a ds)))
+    (beta-bern-ds:set-b! ds (+ (length tails) (beta-bern-ds:b ds)))))
+
+(define (*betas*:update-counts! beta-rv)
+  (beta-bern-ds:update-counts! (*beta*:get-beta beta-rv)))          
 
 (define (beta a b #!optional proposer)
   (if (default-object? proposer)
       (set! proposer (proposals:logistic-gaussian 
                       (/ (beta:var (beta:make-params  a b))  4))))
-
-  (beta-bern-ds:set-a! *beta-bern-ds* a)
-  (beta-bern-ds:set-b! *beta-bern-ds* b)
-
+  
   (let ( (rv (rv:new 'beta
                      the-unsampled-value
                      (pair->flo-vector (cons a b))
@@ -62,6 +74,7 @@
                      beta:force-hook
                      beta:force-set-hook
                      proposer)))
+    (*betas*:init-new! rv a b)
     rv))
 
 (define (beta:rvs-global params)
@@ -103,9 +116,11 @@
                            ;; assumes there is only one beta in the
                            ;; world
                            (lambda (x beta-rv)
-                             (bern:marginal-log-likelihood x
-                                                           (beta-bern-ds:a *beta-bern-ds*)
-                                                           (beta-bern-ds:b *beta-bern-ds*)))
+                             (let ((ds (*betas*:get beta-rv)))
+                               (bern:marginal-log-likelihood x
+                                                             (beta-bern-ds:a ds)
+                                                             (beta-bern-ds:b ds))))
+
                            ;; force-hook
                            bern:force-hook
                            bern:force-set-hook
@@ -130,9 +145,9 @@
              rv))
           ( (error "BERN: don't know what to do with this type of parameter." p))))
 
-(define (bern:force-hook bern)
-  (*beta-bern-ds*:insert-bern! bern (rv:val bern))
-  (*beta-bern-ds*:update-counts!))
+(define (bern:force-hook beta-rv bern-rv)
+  (*betas*:modify-bern! beta-rv bern-rv (rv:val bern-rv))
+  (*betas*:update-counts!) beta-rv)
   
 (define (bern:force-set-hook bern )
   (display "Bern force set hook!")
