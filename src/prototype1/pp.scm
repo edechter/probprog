@@ -49,7 +49,16 @@
 ;; Emit and MH over traces ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;:
 
-(define (emit var observed-value #!optional likelihood-function)
+(define emit 
+  (make-generic-procedure (make-procedure-arity 2 3)
+                          'emit)
+
+;; by default, we emit with the mh:emit which backtracks randomly to a
+;; ptrace continuation and samples over traces. 
+(set-generic-procedure-default-generator!
+ emit (lambda (proc tags) mh:emit))
+        
+(define (mh:emit var observed-value #!optional likelihood-function)
   (if (default-object? likelihood-function)
     (set! likelihood-function likelihood:exact))
 
