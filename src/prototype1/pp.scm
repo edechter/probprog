@@ -3,6 +3,7 @@
 (load "pp-records")
 (load "constants")
 (load "eq-properties")
+(load "generic-rv")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Globals and initialization ;;
