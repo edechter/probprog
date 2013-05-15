@@ -1,20 +1,201 @@
 \documentclass{article}
 
 \usepackage{amsmath}
+\usepackage{microtype}  
+\usepackage{graphicx}
+\newcommand{\given}{\, |\,}
 
 \title{Extensible Probabilistic Programming}
 \author{Eyal Dechter \& Matt Johnson}
 
 \begin{document}
+\maketitle
+\date
 
-\section{Overview of Probabilistic Programming}
-    The goal of probabilistic programming is to enable the user to perform probabilistic inference by writing down a probability distribution in a purely declarative fashion. Thus, probabailistic program is to probabilistic inference what logic programming is to first order logic: instead of specifying what the computer should do, the user specifies constraints on the computer's output, leaving hidden the mechanism and algorithm by which the computer finds the answer. In logic
-    programming, the user writes down a set of logical statements and can then ask various queries of the system. Similarly, in probabilistic programming, the goal is to be able to accomodate various queries from the declared probability distribution, such as samples from the distributions and statistics related to the distribution.  
-    :w
+\section{Overview of Probabilistic Programming} The goal of probabilistic
+programming is to enable the user to perform probabilistic inference by writing
+down a probability distribution in a purely declarative fashion. Thus,
+probabailistic program is to probabilistic inference what logic programming is
+to first order logic: instead of specifying what the computer should do, the
+user specifies constraints on the computer's output, leaving hidden the
+mechanism and algorithm by which the computer finds the answer. In logic
+programming, the user writes down a set of logical statements and can then ask
+various queries of the system. Similarly, in probabilistic programming, the goal
+is to be able to accomodate various queries from the declared probability
+distribution, such as samples from the distributions and statistics related to
+the distribution.  
+   
+How does one declare a probability distribution? Various alternatives exist in
+the literature. One class of probabilistic programming languages extends logic
+programming to accomodate probabilities; these include Markov Logic~\ref{} and
+IBAL~\ref{}. Another class of languages captures directly the structure of a
+``graphical model," a representation of probability distributions as a graph in
+which component distributions represent nodes and edges represent dependencies;
+for an exmple of this, see BUGS~\ref{} or JAGS~\ref{}. 
+
+Sampling procedures or ``generative processes" are an alternative way to
+represent probability distributions simply as the output of a stochastic
+sampling procedure, i.e., a computer program with random primitives. A large
+number of languages, including the one we present here, use functional or
+imperative languages with stochastic primitives as the backbone of a
+probabilistic programming language. In general, one also needs to be able to
+condition on one or more of the variables in
+the program taking on a specific value. These languages usually contain explicit
+constructs that enable such conditioning. As examples of these languages see
+BLOG~\ref{} or Church~\ref{}.
+
+This last approach is by far the most flexible of the three presented above. It
+accomodates, after all, the distribution over the output of any program that one
+could write in, for example, scheme. How can we perform inference for arbitrary
+programs? A special case of this problem, after all, is to observe the output of
+any deterministic scheme function and return a satistfying set of inputs.
+
+In the next two section, we will describe the Metropolis-Hastings algorithm
+(known as MH) which can, in principle, be used to perform inference over
+arbitrary program traces. However, MH is a slow and approximate algorithm, with
+no guarantee of accuracy for any finite amount of running time. Specialized
+inference algorithms for particular families of probability distributions exist
+throughout the statistical inference literature. Discrete graphical models over
+large numbers of variables can be solved exactly and efficiently if the model
+has low ``tree-width." Continuous probability distribution whose gradients we can
+evaluate can be sampled from efficiently with Hamiltonian Monte Carlo~\ref{}.
+And collections of probability distributions that are ``conjugate" to on another
+can often be queried very quickly; such conjugate pairs of distributions exist
+for any distribution with the ``exponential family" distributions.
+
+One of the goals of this project is to show how an MH based probabilistic
+program can be extended to use specialized inference algorithms. 
+
 \section{The Metropolis-Hastings Algorithm}
 
-\section{The Metropolis-Hastings Algorithm for program Traces}
+The Metropolis-Hastings Algorithm is a general purpose algorithm for sampling $x
+\sim p(x)$ in cases where we only have direct access to $p^*(x) \propto
+p(x)$. MH works by constructing a Markov chain over the state space $X$ whose
+stationary distribution is $p(x)$. Thus, to specify the algorithm, we need to
+specify the transition operator $T(x'\,|\,x)$, i.e. the probability of choosing
+location $x'$ as the next state given that the current state is $x$. 
+
+To do this, we need to define a proposal distribution $Q(x' \, | \, x)$. This
+distribution is up to the user, and is often a relatively local transition. For
+example, in continuous domains, $Q(x' \, | \, x) \sim N(x-x', \sigma)$ is a common
+choice. 
+
+Once we have proposed a transition to $x'$, we decide whether to accept that
+proposal based on the relative value of $p^*(x) Q(x' \,| \, x)$ vs. $p^*(x') Q(x
+\,| \, x')$. Formally, the probability of transitioning from $x$ to $x'$ is
+given by  
+
+\begin{align}
+T(x'\, |\, x) =& Q(x' \, |\, x)\min \left \{1, 
+                    \frac{p^*(x') Q(x \, |\, x')} 
+                    {p^*(x) Q(x' \, |\, x)} \right \}.
+\end{align}
+
+It is easy to show that, under mild conditions, this transition rule results in
+a Markov chain whose stationary distribution is $p(x)$.
+
+\section{The structure of a probabilistic program}
+The probablistic programming language we designed is written as regular scheme
+code except for one special construct, \verb+emit+.  Although it is itself just a
+regular scheme function, semantically, \verb+(emit x x-val)+ conditions the
+probability distribution defined by the rest of the code on the fact that
+variable \verb+x+ is equal to \verb+x-val+. \verb+emit+ takes an optional
+argument that specifies what kind if any observation noise should be associated
+with the observation of this variable. 
+
+An example program and conditions on the output of the sum of two Gaussian
+variable being equal to ten might look like
+
+\begin{verbatim}
+(define (sum-of-gaussians)
+    (let ( (x (gaussian 7 2))
+           (y (gaussian 5 3)))
+        (emit (+ x y) 10 observation-likelihood)))
+\end{verbatim}
+
+This ellucidates the general structure of a probabilistic program: we write down
+a regular scheme function that calls some stochastic primitives (that are either
+user-defined or provided as a base library). At the end of the program, we can
+condition on any variable or function of variables being equal to some value. 
+
+\section{The Metropolis-Hastings Algorithm for Program Traces}
+Every time we run a program that evaluates stochastic functions, the set of
+random choices that are made, which we will call the \emph{ptrace}, corresponds
+to a state in the domain of the distribution defined by the program. To
+transition to another state, we need to change those random choices in some
+manner. Here we propose a specific proposal distribution over ptraces and show
+how to calculate the acceptance probability defined in the previous section. 
+
+We define a proposal distribution $Q_{ptrace}(\bar{x}'\given \bar{x} )$ by
+choosing a choice point from $\bar{x}$ uniformly at random and running the program
+from that point forward. Suppose we choose to propose a new $i$th choice point.
+Let $\bar{x}_{before}$ specify the choices before the $i$th choice and let
+$\bar{x}_{after}$ and $\bar{x}'_{after}$ refer to the choices made after the
+$i$th choice in the original ptrace and the proposed one, respectively. Then
+\begin{align}
+Q(\bar{x}' \given \bar{x}) =& \frac{1}{\text{length}(\bar{x})} 
+                            q(x'_i \given x_i) p(\bar{x}'_{after} \given
+                            \bar{x}_{before}, x'_i)
+                            p(y | \bar{x}').
+\end{align}
+
+The target distribution we want to sample from 
+\begin{align}
+p(\bar{x} \given y) \propto & p(y \given \bar{x}) p(\bar(x))\\
+                    =& p(\bar{x}_{before}) p(x_i \given \bar{x}_{before})
+                    p(\bar{x}_{after} \given \bar{x}_{before}, x_i)
+                    p(y|\bar{x}).
+\end{align}
+
+So the acceptance ratio in Equation~\ref{eq:MHTransitionProb} is
+
+\begin{align}
+\frac{p(\bar{x}'_{before}) p(x'_i \given \bar{x}'_{before})
+                    p(\bar{x}'_{after} \given \bar{x}'_{before}, x'_i)
+                   p(y|\bar{x}')}
+                   {p(\bar{x}_{before}) p(x_i \given \bar{x}_{before})
+                    p(\bar{x}_{after} \given \bar{x}_{before}, x_i)
+                    p(y|\bar{x})}\\
+\frac{\frac{1}{\text{length}(\bar{x'})} 
+                           q(x_i \given x'_i) p(\bar{x}_{after} \given \bar{x}_{before}, x_i)
+                        }{\frac{1}{\text{length}(\bar{x})} 
+                           q(x'_i \given x_i) p(\bar{x}'_{after} \given
+                           \bar{x}'_{before}, x'_i)}\\
+= \frac{p(x'_i \given \bar{x}'_{before})
+        p(y|\bar{x}')}
+{p(x_i \given \bar{x}_{before})
+ p(y|\bar{x})}
+\frac{\text{length}(\bar{x})
+    q(x_i \given x'_i) }
+    {\text{length}(\bar{x}') 
+    q(x'_i \given x_i)}\\
+\end{align}
+
+In words, then, every transition involves picking a random point on the trace,
+rolling it forward to the emit statement, and then comparing how well the new
+trace fits the data to how well the old data fits the data. If we follow the MH
+acceptance rule when choosing whether to accept or reject the new state, then
+the stationary distribution of the Markov chain induced by these transitions
+tends towards the target distribution.  A schematic of this process, within a
+concrete example, is shown in Figure~\ref{fig:ptrace}.  
+
+
+\begin{figure}
+\includegraphics[width=\textwidth]{figures/ptrace.pdf}
+\caption{The Metropolis-Hastings algorithm over program traces records the
+stochastic choice points in the ptrace (i.e. the probabilistic trace). When it
+hits an emit declaration, it chooses random choice point, proposes a new
+value for that choice from $q(\cdot | \cdot)$ and rolls the program forward from
+that point. It accepts or rejects the new trace according the
+Metropolis-Hastings acceptance ratio.} \label{fig:ptrace}
+\end{figure}
 
 \section{Conjugate pairs}
 
+
+
+
+\bibliographystyle{plain}
+\bibliography{writeup}
 \end{document}
+
