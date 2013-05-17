@@ -6,6 +6,7 @@
 \newcommand{\given}{\, |\,}
 
 \title{Extensible Probabilistic Programming}
+
 \author{Eyal Dechter \& Matt Johnson}
 
 \begin{document}
@@ -15,23 +16,25 @@
 \section{Overview of Probabilistic Programming} The goal of probabilistic
 programming is to enable the user to perform probabilistic inference by writing
 down a probability distribution in a purely declarative fashion. Thus,
-probabailistic program is to probabilistic inference what logic programming is
+probabilistic program is to probabilistic inference what logic programming is
 to first order logic: instead of specifying what the computer should do, the
 user specifies constraints on the computer's output, leaving hidden the
 mechanism and algorithm by which the computer finds the answer. In logic
 programming, the user writes down a set of logical statements and can then ask
 various queries of the system. Similarly, in probabilistic programming, the goal
-is to be able to accomodate various queries from the declared probability
-distribution, such as samples from the distributions and statistics related to
-the distribution.  
-   
+is to be able to accommodate various queries from the declared probability
+distribution, such as sampling from the distribution and reporting statistics
+related to the distribution.  
+
 How does one declare a probability distribution? Various alternatives exist in
 the literature. One class of probabilistic programming languages extends logic
-programming to accomodate probabilities; these include Markov Logic~\ref{} and
-IBAL~\ref{}. Another class of languages captures directly the structure of a
-``graphical model," a representation of probability distributions as a graph in
-which component distributions represent nodes and edges represent dependencies;
-for an exmple of this, see BUGS~\ref{} or JAGS~\ref{}. 
+programming to accommodate probabilities; these include Markov
+Logic~\cite{richardson2006markov} and Independent Choice
+Logic~\cite{poole1997independent}. Another class of languages captures directly
+the structure of a ``graphical model," a representation of probability
+distributions as a graph in which component distributions represent nodes and
+edges represent dependencies; for an exmple of this, see
+BUGS~\cite{lunn2000winbugs} or JAGS~\cite{plummer2003jags}. 
 
 Sampling procedures or ``generative processes" are an alternative way to
 represent probability distributions simply as the output of a stochastic
@@ -42,10 +45,10 @@ probabilistic programming language. In general, one also needs to be able to
 condition on one or more of the variables in
 the program taking on a specific value. These languages usually contain explicit
 constructs that enable such conditioning. As examples of these languages see
-BLOG~\ref{} or Church~\ref{}.
+BLOG~\cite{milch20071} or Church~\cite{goodman2012church}.
 
 This last approach is by far the most flexible of the three presented above. It
-accomodates, after all, the distribution over the output of any program that one
+accommodates, after all, the distribution over the output of any program that one
 could write in, for example, scheme. How can we perform inference for arbitrary
 programs? A special case of this problem, after all, is to observe the output of
 any deterministic scheme function and return a satistfying set of inputs.
@@ -58,13 +61,27 @@ inference algorithms for particular families of probability distributions exist
 throughout the statistical inference literature. Discrete graphical models over
 large numbers of variables can be solved exactly and efficiently if the model
 has low ``tree-width." Continuous probability distribution whose gradients we can
-evaluate can be sampled from efficiently with Hamiltonian Monte Carlo~\ref{}.
-And collections of probability distributions that are ``conjugate" to on another
+evaluate can be sampled from efficiently with Hamiltonian Monte Carlo~\cite{duane1987hybrid}.
+And collections of probability distributions that are ``conjugate" to another
 can often be queried very quickly; such conjugate pairs of distributions exist
 for any distribution with the ``exponential family" distributions.
 
 One of the goals of this project is to show how an MH based probabilistic
 program can be extended to use specialized inference algorithms. 
+
+\section{Rejection Sampling}
+We briefly note that a simple universal inference algorithm exists that is
+simpler than MH algorithm we describe in the next section: rejection sampling.
+In rejection sampling, we can get unbiased samples from the posterior
+distribution of any of the random variables in the program by sampling program
+traces from the prior and keeping only the traces that agree with the
+\verb+emit+ declarations. Although the rejection sampling algorithm is
+guaranteed to give exact samples from the posterior, it is not practical for
+all but the simplest of probability  distributions because in most cases the
+probability of the event on which we are conditioning is vanishingly small. In
+effect, trying to perform inference in a probabilistic program by rejection
+sampling would be akin to trying to find a solution to an AMB problem by making
+random nondeterministic choices and hoping that you hit a valid solution.
 
 \section{The Metropolis-Hastings Algorithm}
 
@@ -89,13 +106,15 @@ given by
 T(x'\, |\, x) =& Q(x' \, |\, x)\min \left \{1, 
                     \frac{p^*(x') Q(x \, |\, x')} 
                     {p^*(x) Q(x' \, |\, x)} \right \}.
+                    \label{eq:MHTransitionProb}
 \end{align}
 
 It is easy to show that, under mild conditions, this transition rule results in
 a Markov chain whose stationary distribution is $p(x)$.
 
 \section{The structure of a probabilistic program}
-The probablistic programming language we designed is written as regular scheme
+
+The probabilistic programming language we designed is written as regular scheme
 code except for one special construct, \verb+emit+.  Although it is itself just a
 regular scheme function, semantically, \verb+(emit x x-val)+ conditions the
 probability distribution defined by the rest of the code on the fact that
@@ -113,7 +132,7 @@ variable being equal to ten might look like
         (emit (+ x y) 10 observation-likelihood)))
 \end{verbatim}
 
-This ellucidates the general structure of a probabilistic program: we write down
+This elucidates the general structure of a probabilistic program: we write down
 a regular scheme function that calls some stochastic primitives (that are either
 user-defined or provided as a base library). At the end of the program, we can
 condition on any variable or function of variables being equal to some value. 
@@ -191,6 +210,47 @@ Metropolis-Hastings acceptance ratio.} \label{fig:ptrace}
 \end{figure}
 
 \section{Conjugate pairs}
+There are many pairs of probabilisty distributions such that if the first is a
+prior ona  specific hyperparameter of the second, then many of the queries we
+want to ask of the distribution can be solved in closed form. One of the
+simplest examples of such a pair of distributions -- which are called
+``conjugate" pairs" -- is the beta-bernoulli pair. 
+
+The beta distribution is a distribution over values between 0 and 1. The
+Bernoulli distribution is a distribution over coin flips that takes as a
+parameter a probability between 0 and 1 (i.e. the weight of the coin). Thus,
+the Beta-Bernoulli distribution, places a distribution over coin-flips where
+the underlying coin weight is unknown. 
+
+A sampling procedure for this can easily be written as follows 
+\begin{verbatim}
+(define (foo)
+    (let ((p (beta 1 2))
+          (x (bern p)))
+        x)).
+\end{verbatim}
+
+Now, suppose that we have seen many coin flips from the same coin and want to
+reason about the distribution of coin weights that could have given rise to
+this sequence of coin flips. Using the syntax we have presented, we could write
+a distribution of this coin weight as follows:
+\begin{verbatim}
+(define (test-beta-bern)
+  (let* ((p (beta 1 2))
+        (x1 (bern p))
+        (x2 (bern p))
+        (x3 (bern p))
+        (x4 (bern p))
+        (x5 (bern p))
+        (x6 (bern p)))
+    (emit-bern x1 0)
+    (emit-bern x2 0)
+    (emit-bern x3 0)
+    (emit-bern x4 0)
+    (emit-bern x5 0)
+    (emit-bern x6 0)
+    p))
+\end{verbatim}
 
 
 

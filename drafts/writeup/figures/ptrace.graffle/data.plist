@@ -184,7 +184,13 @@
 			<key>Shape</key>
 			<string>Circle</string>
 			<key>Style</key>
-			<dict/>
+			<dict>
+				<key>shadow</key>
+				<dict>
+					<key>Draws</key>
+					<string>NO</string>
+				</dict>
+			</dict>
 			<key>Text</key>
 			<dict>
 				<key>VerticalPad</key>
@@ -275,7 +281,13 @@
 			<key>Shape</key>
 			<string>Circle</string>
 			<key>Style</key>
-			<dict/>
+			<dict>
+				<key>shadow</key>
+				<dict>
+					<key>Draws</key>
+					<string>NO</string>
+				</dict>
+			</dict>
 			<key>Text</key>
 			<dict>
 				<key>VerticalPad</key>
@@ -362,6 +374,11 @@
 						<key>r</key>
 						<string>0</string>
 					</dict>
+				</dict>
+				<key>shadow</key>
+				<dict>
+					<key>Draws</key>
+					<string>NO</string>
 				</dict>
 			</dict>
 			<key>Text</key>
@@ -713,6 +730,11 @@
 						<string>0</string>
 					</dict>
 				</dict>
+				<key>shadow</key>
+				<dict>
+					<key>Draws</key>
+					<string>NO</string>
+				</dict>
 			</dict>
 			<key>Text</key>
 			<dict>
@@ -796,7 +818,13 @@
 			<key>Shape</key>
 			<string>Circle</string>
 			<key>Style</key>
-			<dict/>
+			<dict>
+				<key>shadow</key>
+				<dict>
+					<key>Draws</key>
+					<string>NO</string>
+				</dict>
+			</dict>
 			<key>Text</key>
 			<dict>
 				<key>VerticalPad</key>
@@ -813,7 +841,13 @@
 			<key>Shape</key>
 			<string>Circle</string>
 			<key>Style</key>
-			<dict/>
+			<dict>
+				<key>shadow</key>
+				<dict>
+					<key>Draws</key>
+					<string>NO</string>
+				</dict>
+			</dict>
 			<key>Text</key>
 			<dict>
 				<key>VerticalPad</key>
@@ -830,7 +864,13 @@
 			<key>Shape</key>
 			<string>Circle</string>
 			<key>Style</key>
-			<dict/>
+			<dict>
+				<key>shadow</key>
+				<dict>
+					<key>Draws</key>
+					<string>NO</string>
+				</dict>
+			</dict>
 			<key>Text</key>
 			<dict>
 				<key>VerticalPad</key>
@@ -12758,7 +12798,7 @@
 	<key>MasterSheets</key>
 	<array/>
 	<key>ModificationDate</key>
-	<string>2013-05-15 02:00:42 +0000</string>
+	<string>2013-05-17 02:32:38 +0000</string>
 	<key>Modifier</key>
 	<string>Eyal Dechter</string>
 	<key>NotesVisible</key>
