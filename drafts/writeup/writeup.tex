@@ -75,7 +75,7 @@ simpler than MH algorithm we describe in the next section: rejection sampling.
 In rejection sampling, we can get unbiased samples from the posterior
 distribution of any of the random variables in the program by sampling program
 traces from the prior and keeping only the traces that agree with the
-\verb+emit+ declarations. Although the rejection sampling algorithm is
+\verb+emit+ call. Although the rejection sampling algorithm is
 guaranteed to give exact samples from the posterior, it is not practical for
 all but the simplest of probability  distributions because in most cases the
 probability of the event on which we are conditioning is vanishingly small. In
@@ -210,16 +210,17 @@ Metropolis-Hastings acceptance ratio.} \label{fig:ptrace}
 \end{figure}
 
 \section{Conjugate pairs}
-There are many pairs of probabilisty distributions such that if the first is a
-prior ona  specific hyperparameter of the second, then many of the queries we
+There are many pairs of probability distributions such that if the first is a
+prior and specific hyperparameter of the second, then many of the queries we
 want to ask of the distribution can be solved in closed form. One of the
 simplest examples of such a pair of distributions -- which are called
-``conjugate" pairs" -- is the beta-bernoulli pair. 
+``conjugate" pairs" -- is the Beta-Bernoulli pair.
 
-The beta distribution is a distribution over values between 0 and 1. The
+
+The Beta distribution is a distribution over values between 0 and 1. The
 Bernoulli distribution is a distribution over coin flips that takes as a
 parameter a probability between 0 and 1 (i.e. the weight of the coin). Thus,
-the Beta-Bernoulli distribution, places a distribution over coin-flips where
+the Beta-Bernoulli distribution places a distribution over coin-flips where
 the underlying coin weight is unknown. 
 
 A sampling procedure for this can easily be written as follows 
@@ -239,17 +240,22 @@ a distribution of this coin weight as follows:
   (let* ((p (beta 1 2))
         (x1 (bern p))
         (x2 (bern p))
-        (x3 (bern p))
-        (x4 (bern p))
-        (x5 (bern p))
-        (x6 (bern p)))
+        (x3 (bern p)))
     (emit-bern x1 0)
     (emit-bern x2 0)
-    (emit-bern x3 0)
-    (emit-bern x4 0)
-    (emit-bern x5 0)
-    (emit-bern x6 0)
+    (emit-bern x3 1)
     p))
+\end{verbatim}
+
+In order to generate samples from the posterior distribution of coin weight
+\verb+p+, we can either run the general MH sampler over program traces, or we
+can try to take advantage of the fact that the Beta distribution is conjugate
+to the Bernoulli distribution. In order to implement the latter algorithm, we
+create a data structure that records all uses of Beta distributions and the
+associated Bernoulli flips based on them.  
+
+\begin{verbatim}
+
 \end{verbatim}
 
 
